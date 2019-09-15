@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <main>
+        <header>
+            <hgroup>
+                <h1 id="title">Video Game Sales</h1>
+                <h3 id="description">Top 100 Most Sold Video Games Grouped by Platform</h3>
+            </hgroup>
+        </header>
+
+        <svg width="960" height="570"></svg>
+        <div id="viz"></div>
+
+    </main>
+
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+
+    <script>
+
+
+
+
+        window.onload = function () {
+            document.addEventListener("DOMContentLoaded", getData());
+        }
+
+        function getData() {
+
+            var url = 'https://cdn.rawgit.com/freeCodeCamp/testable-projects-fcc/a80ce8f9/src/data/tree_map/video-game-sales-data.json';
+
+            var request = new XMLHttpRequest();
+            request.responseType = 'json';
+            request.open('GET', url, true);
+            request.send();
+
+            request.onload = function () {
+                createTreemap(request.response);
+            }
+        }
+
+        function createTreemap(data) {
+
+            var svg = d3.select("svg"),
+                width = +svg.attr("width"),
+                height = +svg.attr("height");
+
+            var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+            var format = d3.format(",d");
+
+            var treemap = d3.treemap()
+                .tile(d3.treemapResquarify)
+                .size([width, height])
+                .paddingInner(1);
+
+            var root = d3.hierarchy(data)
+                .eachBefore(function (d) {
+                    return d.data.id = d.data.name;
+                })
+                .sum(x => x.value)
+                .sort(function (a, b) { return b.value - a.value; });
+
+            treemap(root);
+
+            var cell = svg.selectAll("g")
+                .data(root.leaves())
+                .enter().append("g")
+                .attr("transform", function (d) { return "translate(" + d.x0 + "," + d.y0 + ")"; });
+
+            cell.append("rect")
+                .attr("class", "tile")
+                .attr("data-value", x => x.data.value)
+                .attr("data-name", x => x.data.name)
+                .attr("data-category", x => x.data.category)
+                .attr("id", function (d) { return d.data.id; })
+                .attr("width", d => d.x1 - d.x0)
+                .attr("height", d =>  d.y1 - d.y0 )
+                .attr("fill", d =>  color(d.parent.data.name));
+
+    
+            cell.append("text")
+                .selectAll("tspan")
+                .data(function (d) { return d.data.name.split(/(?=[A-Z][^A-Z])/g); })
+                .enter()
+                .append("tspan")
+                .attr("x", 4)
+                .attr("y", function (d, i) { return 13 + i * 10; })
+                .text(function (d) { return d; });
+                
+
+            d3.selectAll("rect")
+                .on("mouseenter", function (actual, i) {
+                    var tooltip = d3.select("main")
+                        .append("div")
+                        .attr("id", "tooltip")
+                        .attr("data-value", actual.data.value)
+                        .attr("class", "tooltip");
+
+                    tooltip.append("p")
+                        .text(actual.data.name + "\n" + format(actual.data.value));
+                })
+                .on("mousemove", function () {
+                    d3.select("#tooltip")
+                        .style("top", (event.pageY + 25) + "px")
+                        .style("left", (event.pageX + 25) + "px");
+                })
+                .on("mouseout", function () {
+                    d3.select("#tooltip").remove();
+                });
+
+
+            var categories = root.leaves().map(x => x.parent.data.id);
+
+            categories = categories.filter((item, pos) => {
+                return categories.indexOf(item) == pos;
+            });
+
+            // create legend
+            var svg = d3.select('#viz')
+                .append('svg')
+                .attr('id', 'legend')
+                .attr('width', width)
+                .attr('height', 70).append('g')
+                .attr('class', 'legend')
+                .attr('transform', 'translate(0, ' + 30 + ')');
+
+            // legend title
+            svg.append('text')
+                .style('font-weight', 'bold')
+                .attr('x', 10)
+                .attr('y', -10)
+                .text('Legend');
+
+            // create g for each legend item
+            var legendItem = svg.selectAll('.legend-item')
+                .data(categories).enter()
+                .append('g')
+                .attr('transform', function (d, i) {
+                    return 'translate(' + i * 50 + ',' + 10 + ')'
+                });
+
+            // legend rectangle
+            legendItem.append('rect')
+                .attr('class', 'legend-item')
+                .attr('width', 20)
+                .attr('height', 20)
+                .style('fill', function (d) {
+                    return color(d);
+                });
+
+            // legend text
+            legendItem.append('text')
+                .attr('x', 25)
+                .attr('y', 15).text(function (d) {
+                    return d;
+                });
+        }
+    </script>
+
+</body>
+
+</html>
